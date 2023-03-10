@@ -1,0 +1,25 @@
+name: trigger e2e on label
+
+on:
+  pull_request:
+    types:
+    - labeled
+
+jobs:
+  trigger-e2e-tests:
+    if: contains(github.event.*.labels.*.name, 'ci/run-e2e')
+    # if: ${{ github.event.label.name == 'ci/run-nightly' || github.event_name == 'workflow_dispatch' }}
+
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.PAT }}
+      WORKFLOW: .github/workflows/e2e.yaml
+      BRANCH: ${{ github.event.pull_request.head.ref }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+    - uses: actions/checkout@v3
+    - run: gh workflow run ${WORKFLOW} --ref ${BRANCH}
+    - run: echo "URL=$(gh run list --workflow=${WORKFLOW} --json url --limit 1 --branch ${BRANCH} --jq '.[].url')" >> $GITHUB_ENV
+    - run: gh pr comment ${PR_NUMBER} --body "E2E tests were started at ${URL}"
+    - run: gh pr edit ${PR_NUMBER} --remove-label ci/run-e2e
