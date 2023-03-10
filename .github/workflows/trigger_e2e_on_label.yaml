@@ -19,7 +19,4 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - run: gh workflow run ${WORKFLOW} --ref ${BRANCH}
-    - run: echo "URL=$(gh run list --workflow=${WORKFLOW} --json url --limit 1 --branch ${BRANCH} --jq '.[].url')" >> $GITHUB_ENV
-    - run: gh pr comment ${PR_NUMBER} --body "E2E tests were started at ${URL}"
-    - run: gh pr edit ${PR_NUMBER} --remove-label ci/run-e2e
+    - run: gh workflow run ${WORKFLOW} --ref ${BRANCH} -f pr-number=${PR_NUMBER}
