@@ -1,12 +1,25 @@
 name: e2e tests
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: 'PR number this workflow has been triggered from'
+        required: false
+
   push:
+    branches:
+    - 'main'
     tags:
     - '*'
 
 jobs:
+  post-comment-in-pr:
+    if: ${{ github.event.inputs.pr-number != '' }}
+    runs-on: ubuntu-latest
+    steps:
+    - run: gh pr comment ${{ github.event.inputs.pr-number }} --body "E2E tests were started at ${URL}"
+
   e2e-tests:
     runs-on: ubuntu-latest
     strategy:
@@ -16,4 +29,5 @@ jobs:
         - 'v1.26.0'
     steps:
     - uses: actions/checkout@v3
+    - run: echo ${{ github.run_id }}
     - run: ls -la
