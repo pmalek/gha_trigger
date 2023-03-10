@@ -1,11 +1,32 @@
 name: e2e tests
+run-name: e2e tests, branch:${{ github.ref_name }}, triggered by @${{ github.actor }}
+
+concurrency:
+  # Limit the concurrency of e2e tests to run only 1 workflow for ref (branch).
+  # Ref: https://docs.github.com/en/actions/using-jobs/using-concurrency
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
+  schedule:
+    - cron: '* * * * *'
   workflow_dispatch:
     inputs:
       pr-number:
         description: 'PR number this workflow has been triggered from'
         required: false
+      kubernetes-version:
+        description: 'Kubernetes version to test with'
+        required: true
+        default: 'v1.26.0'
+      controller-image:
+        description: 'KIC Docker image to test with. The default "kong/kubernetes-ingress-controller:ci" builds an image from the dispatch branch'
+        required: true
+        default: 'kong/kubernetes-ingress-controller:ci'
+      istio-version:
+        description: 'Istio version to test with'
+        required: true
+        default: 'v1.17.1'
 
   push:
     branches:
@@ -17,8 +38,23 @@ jobs:
   post-comment-in-pr:
     if: ${{ github.event.inputs.pr-number != '' }}
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.PAT }}
+      # URL is the current's workflow run URL
+      URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      PR_NUMBER: ${{ github.event.inputs.pr-number }}
     steps:
-    - run: gh pr comment ${{ github.event.inputs.pr-number }} --body "E2E tests were started at ${URL}"
+    - uses: actions/checkout@v3
+    - run: |
+        gh pr comment ${PR_NUMBER} --body \
+          "E2E tests were started at ${URL}
+          
+          | controller image | k8s | istio |
+          | - | - | - |
+          | \`${{ github.event.inputs.controller-image }}\` (built from \`${{ github.sha }}\`) | \`${{ github.event.inputs.kubernetes-version }}\` | \`${{ github.event.inputs.istio-version }}\` |
+          "
+    - run:
+        gh pr edit ${PR_NUMBER} --remove-label ci/run-e2e
 
   e2e-tests:
     runs-on: ubuntu-latest
@@ -28,6 +64,8 @@ jobs:
         - 'v1.25.3'
         - 'v1.26.0'
     steps:
+    - run: echo running for ${{ github.workflow }}-${{ github.ref }}
+    - run: echo running for ${{ github.workflow }}-${{ github.ref_name }}
     - uses: actions/checkout@v3
-    - run: echo ${{ github.run_id }}
+    - run: sleep 360
     - run: ls -la
